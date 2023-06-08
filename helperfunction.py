@@ -11,6 +11,9 @@ SERVICE_MEAN = 8    # 1/mean service time
 ARRIVAL_MEAN = 1    # mean arrival time
 
 
+HYPER_PROB = 0.8
+HYPER_MEAN = [1/0.8333, 1/5.]
+
 class Event:
     def __init__(self, event_type : str, time : float, ) -> None:
         if event_type.lower() not in ['arrival', 'departure']:
@@ -26,6 +29,18 @@ def sample_arrival_poisson_process() -> float:
         :return: arrival time (as a float)
     """
     return np.random.exponential(ARRIVAL_MEAN) # TODO: check if is it not 1/arrial_mean
+
+
+
+def sample_arrival_hyper_exponential() -> float:
+    """
+    """
+    p = np.random.binomial(n=1,p= HYPER_PROB)
+
+    if p:
+        return np.random.exponential(HYPER_MEAN[0])
+    else:
+        return np.random.exponential(HYPER_MEAN[1])
 
 
 def sample_service_time_exponential() -> float:
@@ -134,8 +149,8 @@ def blocking_simulation(
                     block_count += 1
                 
                 # insert time for next arrival
-                new_arrival = sample_arrival()
-                arrival += new_arrival
+                new_arrival = sample_arrival() # arrival[customer_count]
+                arrivals += new_arrival
                 arrival_event = Event('arrival', global_time + new_arrival)
                 event_list = apend_event(event_list, arrival_event)
 
