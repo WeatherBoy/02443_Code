@@ -8,7 +8,7 @@ import collections
 ### >>>> BIG test & plots (ex01) <<<< ###
 ## Functions which are apparently needed in here:
 def linear_congruental_generator(
-    multiplier: int, shift: int, modulus: int, x0: int = None, break_point: int = None
+    multiplier: int, shift: int, modulus: int, x0: int = None, break_point: int = None, modulus_overwrite: bool = False
 ) -> tuple[list[int], list[float]]:
     """
     Generates a list of random numbers using the linear congruental generator method.
@@ -20,6 +20,8 @@ def linear_congruental_generator(
     :param shift: The shift (c) used in the formula.
     :param modulus: The modulus (M) used in the formula.
     :param x0: initial value (x0) used in the formula. If not provided, a random value will be used.
+    :param break_point: The number of iterations to run the generator for.
+    :param modulus_overwrite: If you specifically want to overwrite the modulus, set this to True.
 
     :return random_nums: a list of randomly generated numbers.
     :return U: a list of random numbers between 0 and 1.
@@ -28,11 +30,19 @@ def linear_congruental_generator(
     assert type(modulus) is int, "Modulus must be an integer."
     assert modulus > 0, "Modulus must be greater than 0."
 
+    if modulus < 10**8 and not modulus_overwrite:
+        print("WARNING: Modulus is less than 10^8. This may result in a short cycle length.")
+        modulus = np.random.randint(10**8, 10**10)  # <-- just some randomly big number
     if x0 is None:
         x0 = np.random.randint(0, modulus)
 
     if break_point is None:
-        break_point = modulus // 10
+        # NOTE: this makes zero sense
+        if modulus_overwrite:
+            # It i just that in this case we can't guarantee that modulus is very big, and we obviously want break_point to be greater than 1
+            break_point = modulus // 10
+        elif not modulus_overwrite:
+            break_point = modulus // 1000
 
     random_nums = [x0]
     U = [x0 / modulus]
@@ -45,7 +55,7 @@ def linear_congruental_generator(
     return random_nums, U
 
 
-def chi_squared_test_U(U: list[float], num_bins: int) -> float:
+def chi_squared_test_U(U: list[float], num_bins: int) -> tuple[float, float, int]:
     """
     This function performs the chi-squared test on a list of random numbers.
     For uniform expected distribution.
@@ -53,14 +63,14 @@ def chi_squared_test_U(U: list[float], num_bins: int) -> float:
     :param U: list of random numbers (uniformly distributed).
     :param num_bins: number of bins to divide the random numbers into.
 
-    :return p: returns the p-value of the test.
+    :return p: returns the p-value of the test (alongside the T-value and the defrees of fredom).
     """
 
     N = len(U)
     expected_num_in_bins = N / num_bins
 
     # Divied into bins
-    counts, _ = np.histogram(U, bins=num_bins)
+    counts, something = np.histogram(U, bins=num_bins)
 
     T = np.sum((counts - expected_num_in_bins) ** 2 / expected_num_in_bins)
 
@@ -68,7 +78,7 @@ def chi_squared_test_U(U: list[float], num_bins: int) -> float:
 
     p = 1 - scipy.stats.chi2.cdf(T, df)
 
-    return p
+    return p, T, df
 
 
 def kolmogorov_smirnov_unif(data_points: list[float], modulus: int) -> float:
@@ -245,7 +255,15 @@ def up_down(random_nums: list[float]) -> float:
 
 #### The actual functions
 def plot_hist_and_corr(
-    multiplier: int, shift: int, modulus: int, x0: int = None, U: list[float] = None, num_bins: int = None, num_scatter_points: int = None
+    multiplier: int = None,
+    shift: int = None,
+    modulus: int = None,
+    x0: int = None,
+    U: list[float] = None,
+    break_point: int = None,
+    modulus_overwrite: bool = False,
+    num_bins: int = None,
+    num_scatter_points: int = None,
 ) -> None:
     """
     This function plots the histogram and corresponding correlation plot of a specific run of our LCG.
@@ -254,6 +272,9 @@ def plot_hist_and_corr(
     :param shift: The shift (c) used in the formula.
     :param modulus: The modulus (M) used in the formula.
     :param x0: initial value (x0) used in the formula. If not provided, a random value will be used.
+    :param U: A list of random numbers. If provided, the LCG will not be used.
+    :param break_point: The number of iterations to run the generator for.
+    :param modulus_overwrite: If you specifically want to overwrite the modulus, set this to True.
     :param num_bins: number of bins in the histogram.
     :param num_scatter_points: number of points plotted in the correlation plot.
 
@@ -275,7 +296,9 @@ def plot_hist_and_corr(
 
     if U is None:
         # In this case, we need to generate U
-        _, U = linear_congruental_generator(multiplier=multiplier, shift=shift, modulus=modulus, x0=x0)
+        _, U = linear_congruental_generator(
+            multiplier=multiplier, shift=shift, modulus=modulus, x0=x0, break_point=break_point, modulus_overwrite=modulus_overwrite
+        )
         hist_title = f"Histogram of random numbers, with: \nM: {modulus}, a: {multiplier}, c: {shift}, x0: {x0}"
 
     elif multiplier is not None and shift is not None and modulus is not None and x0 is not None:
@@ -303,8 +326,9 @@ def chungus_test(
     shift: int = None,
     modulus: int = None,
     x0: int = None,
-    break_point: int = None,
     U: list[float] = None,
+    break_point: int = None,
+    modulus_overwrite: bool = False,
     significance_level: float = 0.05,
     chi_squared_bins: int = 10,
     expected_median: float = 0.5,
@@ -326,7 +350,9 @@ def chungus_test(
     :param shift: the shift (c) in the linear congruental generator.
     :param modulus: the modulus (M) in the linear congruental generator.
     :param x0: the initial value (x0) in the linear congruental generator.
+    :param U: A list of random numbers. If provided, the LCG will not be used.
     :param break_point: the break point (b) in the linear congruental generator.
+    :param modulus_overwrite: If you specifically want to overwrite the modulus, set this to True.
     :param significance_level: the significance level for the tests.
     :param chi_squared_bins: the number of bins to use in the chi-squared test.
     :param expected_median: the expected median of the random numbers.
@@ -339,7 +365,9 @@ def chungus_test(
     ), "You must either provide U or the parameters for the LCG."
 
     if U is None:
-        _, U = linear_congruental_generator(multiplier=multiplier, shift=shift, modulus=modulus, x0=x0, break_point=break_point)
+        _, U = linear_congruental_generator(
+            multiplier=multiplier, shift=shift, modulus=modulus, x0=x0, break_point=break_point, modulus_overwrite=modulus_overwrite
+        )
         print(f"{len(U)} random numbers generated using the Linear Congruental Generator with parameters:")
         print(f"Multiplier (a): {multiplier}")
         print(f"shift (c): {shift}")
@@ -355,10 +383,8 @@ def chungus_test(
 
     print(">>>> FIRSTLY from the distribution tests <<<<")
     print(f"From the Chi-squared test for {chi_squared_bins} bins:")
-    T = chi_squared_test_U(U, chi_squared_bins)
-    df = chi_squared_bins - 1 - 1  # when number of estimated parameters is m=1
-    p_chi_sqr = 1 - scipy.stats.chi2.cdf(T, df)
-    print(f"The test statistic T = {T} \nshould be asymptotically chi-squared with {df} degrees of freedom.")
+    p_chi_sqr, T_chi_sqr, df_chi_sqr = chi_squared_test_U(U, chi_squared_bins)
+    print(f"The test statistic T = {T_chi_sqr} \nshould be asymptotically chi-squared with {df_chi_sqr} degrees of freedom.")
     print(f"We test that by p-value. The p-value is: {p_chi_sqr}.")
     print(
         f"With a significance level of: {significance_level} we find that the test is {'not ' if p_chi_sqr < significance_level else ''}significant.\n"
