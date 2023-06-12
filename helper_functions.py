@@ -413,6 +413,125 @@ def chungus_test(
         )
 
 
+### >>>> MCMC (ex06) <<<< ###
+
+def normpdf(x : float, mu : float, sigma : float) -> float:
+    """
+        Normal distribution probability density function.
+        
+        :param x: x value
+        :param mu: mean
+        :param sigma: standard deviation
+        
+        :return: probability density function value
+    """
+    return 1/(np.sqrt(2 * np.pi) * sigma) * np.exp(-1.0 / 2 * ((mu - x) / sigma)**2)
+
+
+def MCMC_1(num_samples : int, g : Callable[[float], float],  X_0: int = None, burn_in_ratio : float = 0.5 ):
+    """
+        Markov Chain Monte Carlo scheme. We use the Metropolis-Hastings algorithm.
+        NOTE: The burn_in_ratio is added to the amount samples. I.e. the number of iterations
+        are num_samples * (1 + burn_in_ratio).
+        
+        :param num_samples: Number of samples points from the MCMC
+        :param X_0: Initial value of the Markov Chain. If None, a random value between 0 and m is chosen.
+        :param burn_in_ratio: The amount of burn-in we wish to apply (as a ratio)
+        
+        :return: Samples from the Markov Chain
+    """
+    num_iter = int(num_samples * (1 + burn_in_ratio))
+    if X_0 is None:
+        X_0 = np.random.randint(0, m + 1) # Random number between 0 and m (inclusive)
+
+    samples = []
+    samples.append(X_0)
+
+    for _ in range(num_iter):
+        delta_X = np.random.binomial(n=1, p=0.5)*2 - 1 # Number either -1 or 1
+        X_curr = samples[-1]
+        
+        X_proposal = X_curr + delta_X  # <-- okay.. this is technically unecessary, but it's good practice to initialize variables (that would otherwise go out of scope)
+        
+    
+        if X_proposal < 0:
+            # Edge-case lower end
+            X_proposal = m
+        elif X_proposal > m:
+            # Edge-case upper end
+            X_proposal = 0 
+            
+
+        A = min(1.0, g(X_proposal) / g(X_curr))
+        
+
+        accept = np.random.binomial(n=1, p=A)
+      
+        if accept:
+            samples.append(X_proposal)
+        elif not accept:
+            samples.append(X_curr)
+
+    
+    return samples[:num_samples]
+
+def MCMC_two_dim_boxed(num_samples : int, g : Callable[[float], float], X_0: int = None, burn_in_ratio : float = 0.5, seed : int = 42):
+    """
+        Markov Chain Monte Carlo scheme. We use the Metropolis-Hastings algorithm.
+        This is for the two-dimensional case.
+        NOTE: The burn_in_ratio is added to the amount samples. I.e. the number of iterations
+        are num_samples * (1 + burn_in_ratio).
+        
+        :param num_samples: Number of samples points from the MCMC
+        :param X_0: Initial value of the Markov Chain. If None, a random value between 0 and m is chosen.
+        :param burn_in_ratio: The amount of burn-in we wish to apply (as a ratio)
+        
+        :return: Samples from the Markov Chain
+    """
+    
+    # initialization
+    np.random.seed(seed=seed)
+    num_iter = int(num_samples * (1 + burn_in_ratio))
+    
+    # Finidng our first guess (if none specified)
+    if X_0 is None:
+        first_sample = np.random.randint(0, m + 1)
+        X_0 = np.array([first_sample, np.random.randint(0, 10 - first_sample + 1)]) # [Random number between 0 and m (inclusive), Random number between 0 and 10 - previously sampled number (inclusive)]
+  
+    samples = [X_0]
+
+    for _ in range(num_iter):
+        X_curr = samples[-1]
+        
+        # random guess
+        delta_X = np.random.randint(-1, 2, size=2)
+        
+        # We can only move so discard a random walk if we are not moving
+        while delta_X[0] == 0 and delta_X[1] == 0:
+            delta_X = np.random.randint(-1, 2, size=2)
+            
+        X_proposal =  X_curr + delta_X
+        
+        # if out of bounds we just stay at the same point
+        if X_proposal.sum() > m or X_proposal[0] < 0 or X_proposal[1] < 0:
+            samples.append(X_curr)
+            
+        else:
+            A = min(1, g(X_proposal) / g(X_curr))
+            accept = np.random.binomial(n=1, p=A)
+    
+            if accept:
+                samples.append(X_proposal)
+            elif not accept:
+                samples.append(X_curr)
+
+    
+    return samples[:num_samples]
+
+
+
+
+
 ### >>>> Blocking system (ex04) <<<< ###
 # Define blocking system
 m = 10  # service units
