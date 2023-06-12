@@ -365,7 +365,7 @@ def chungus_test(
     )
 
     print("From the Kolmogorov-Smirnov test:")
-    D_n = kolmogorov_smirnov_unif(U, M)
+    D_n = kolmogorov_smirnov_unif(U, modulus)
     p_KS = 1 - scipy.special.kolmogorov(D_n)
     print(f"The test-statistic: {D_n}, \nshould be asymptotically K-S distributed.")
     print(f"We test that by p-value. The p-value is: {p_KS}")
